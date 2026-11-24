@@ -6,11 +6,40 @@ import tempfile
 
 CHUNK = Path("dist/bundle/chunks/chunk-KSDI5FD4.js")
 ORIGINAL = "5558c943edf1c00ca788788bc6b041d6a70a50ae7e646be2192ad399f1df7e34"
-CUSTOM = "f6ce8f2f9a362ab9491d50a4c9d782e6c823cd86e7c7a34516d005bace53d079"
+DIMMED = "f6ce8f2f9a362ab9491d50a4c9d782e6c823cd86e7c7a34516d005bace53d079"
+CUSTOM = "3d4c3f70bdf94895dc23f60aab00fe730d73354ffa9e370a41016d42b2612125"
 PREVIOUS_CUSTOM = "4eb0c487ad40b31cdac82f582aed1e5098cb3883c24d38cd0c0ee65f3a50e9a8"
 COMMAND_COLORS = (
     ('theme.fg("toolTitle",`${prompt} ${commandDisplay}`)', 'theme.fg("muted",`${prompt} ${commandDisplay}`)'),
     ('theme.fg(this.colorKey,`$ ${this.command}`)', 'theme.fg("muted",`$ ${this.command}`)'),
+)
+COMMAND_PREVIEW = (
+    (
+        "function createShellRenderers(prompt){",
+        "class ShellCommandPreview extends Text{"
+        "render(width){const lines=super.render(width);"
+        "if(this.commandExpanded||lines.length<=3)return lines;"
+        "if(this.previewSource!==lines){this.previewSource=lines;"
+        'this.previewLines=[...lines.slice(0,2),theme.fg("muted",truncateToWidth(" … click to expand",width))]} '
+        "return this.previewLines}}function createShellRenderers(prompt){",
+    ),
+    (
+        'let text=context.lastComponent??new Text("",0,0);return text.setText(formatShellCall(args,prompt)),text',
+        'let text=context.lastComponent??new ShellCommandPreview("",0,0);'
+        'return text.commandExpanded=context.expanded,text.setText(formatShellCall(args,prompt)),text',
+    ),
+    (
+        'super(),this.command=command,this.colorKey=excludeFromContext?',
+        'super(),this.command=command,this.commandUi=ui,this.colorKey=excludeFromContext?',
+    ),
+    (
+        'let header=new Text(theme.fg("muted",`$ ${this.command}`),this.outputPad,0);if(this.contentContainer.addChild(header),',
+        'let header=new ShellCommandPreview(theme.fg("muted",`$ ${this.command}`),this.outputPad,0);'
+        'header.commandExpanded=this.expanded;'
+        'if(this.contentContainer.addChild(new MouseRegion(header,event=>{'
+        'if(event.type!=="click"||event.button!=="left")return;'
+        'this.setExpanded(!this.expanded),this.commandUi.requestRender();return {handled:!0}})),',
+    ),
 )
 REPLACEMENTS = (
     (
@@ -41,7 +70,14 @@ REPLACEMENTS = (
     ('theme.fg("toolTitle",theme.bold(`${prompt} ${commandDisplay}`))', 'theme.fg("toolTitle",`${prompt} ${commandDisplay}`)'),
     ('theme.fg(this.colorKey,theme.bold(`$ ${this.command}`))', 'theme.fg(this.colorKey,`$ ${this.command}`)'),
     *COMMAND_COLORS,
+    *COMMAND_PREVIEW,
 )
+BUILD_STEPS = {
+    ORIGINAL: 0,
+    PREVIOUS_CUSTOM: len(REPLACEMENTS) - len(COMMAND_PREVIEW) - len(COMMAND_COLORS),
+    DIMMED: len(REPLACEMENTS) - len(COMMAND_PREVIEW),
+    CUSTOM: len(REPLACEMENTS),
+}
 
 
 def main():
@@ -61,20 +97,18 @@ def main():
     if not bundle.is_file():
         parser.error(f"Pi 1.6.0 bundle not found at {bundle}.")
 
-    source, target = (CUSTOM, ORIGINAL) if args.undo else (ORIGINAL, CUSTOM)
+    target = ORIGINAL if args.undo else CUSTOM
     original = bundle.read_bytes()
     current = sha256(original).hexdigest()
     if current == target:
         print("Pi already has the requested UI.")
         return
-    if current not in (source, PREVIOUS_CUSTOM):
+    if current not in BUILD_STEPS:
         parser.error(f"Unexpected Pi bundle checksum at {bundle}. This patch targets the saved Pi 1.6.0 build.")
 
-    replacements = REPLACEMENTS
-    if current == PREVIOUS_CUSTOM:
-        replacements = REPLACEMENTS[:-len(COMMAND_COLORS)] if args.undo else COMMAND_COLORS
+    steps = BUILD_STEPS[current]
     updated = original
-    pairs = [(after, before) for before, after in reversed(replacements)] if args.undo else replacements
+    pairs = [(after, before) for before, after in reversed(REPLACEMENTS[:steps])] if args.undo else REPLACEMENTS[steps:]
     for before, after in pairs:
         if updated.count(before.encode()) != 1:
             parser.error("A UI patch anchor was missing or ambiguous.")
