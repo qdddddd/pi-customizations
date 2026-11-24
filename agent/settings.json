@@ -1,0 +1,9 @@
+{
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
+  "defaultProvider": "magpie",
+  "defaultModel": "codex/gpt-6.2-sol",
+  "lastChangelogVersion": "1.6.0",
+  "hideThinkingBlock": false,
+  "theme": "gruvbox-light",
+  "quietStartup": "header"
+}

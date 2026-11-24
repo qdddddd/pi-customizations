@@ -1,0 +1,17 @@
+/*
+!/agent/
+/agent/*
+!/agent/settings.json
+!/agent/keybindings.json
+!/agent/themes/
+/agent/themes/*
+!/agent/themes/gruvbox.json
+!/agent/themes/gruvbox-light.json
+!/agent/extensions/
+/agent/extensions/*
+!/agent/extensions/omp-workflow/
+/agent/extensions/omp-workflow/*
+!/agent/extensions/omp-workflow/*.ts
+!/.gitignore
+!/README.md
+!/patch-pi-ui.py
