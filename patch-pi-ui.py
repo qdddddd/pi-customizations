@@ -6,7 +6,12 @@ import tempfile
 
 CHUNK = Path("dist/bundle/chunks/chunk-KSDI5FD4.js")
 ORIGINAL = "5558c943edf1c00ca788788bc6b041d6a70a50ae7e646be2192ad399f1df7e34"
-CUSTOM = "4eb0c487ad40b31cdac82f582aed1e5098cb3883c24d38cd0c0ee65f3a50e9a8"
+CUSTOM = "f6ce8f2f9a362ab9491d50a4c9d782e6c823cd86e7c7a34516d005bace53d079"
+PREVIOUS_CUSTOM = "4eb0c487ad40b31cdac82f582aed1e5098cb3883c24d38cd0c0ee65f3a50e9a8"
+COMMAND_COLORS = (
+    ('theme.fg("toolTitle",`${prompt} ${commandDisplay}`)', 'theme.fg("muted",`${prompt} ${commandDisplay}`)'),
+    ('theme.fg(this.colorKey,`$ ${this.command}`)', 'theme.fg("muted",`$ ${this.command}`)'),
+)
 REPLACEMENTS = (
     (
         'new Markdown(this.text,this.outputPad,1,this.markdownTheme,{color:content=>theme.fg("userMessageText",content),bgColor:content=>theme.bg("userMessageBg",content)}',
@@ -35,6 +40,7 @@ REPLACEMENTS = (
     ),
     ('theme.fg("toolTitle",theme.bold(`${prompt} ${commandDisplay}`))', 'theme.fg("toolTitle",`${prompt} ${commandDisplay}`)'),
     ('theme.fg(this.colorKey,theme.bold(`$ ${this.command}`))', 'theme.fg(this.colorKey,`$ ${this.command}`)'),
+    *COMMAND_COLORS,
 )
 
 
@@ -61,11 +67,14 @@ def main():
     if current == target:
         print("Pi already has the requested UI.")
         return
-    if current != source:
+    if current not in (source, PREVIOUS_CUSTOM):
         parser.error(f"Unexpected Pi bundle checksum at {bundle}. This patch targets the saved Pi 1.6.0 build.")
 
+    replacements = REPLACEMENTS
+    if current == PREVIOUS_CUSTOM:
+        replacements = REPLACEMENTS[:-len(COMMAND_COLORS)] if args.undo else COMMAND_COLORS
     updated = original
-    pairs = [(after, before) for before, after in reversed(REPLACEMENTS)] if args.undo else REPLACEMENTS
+    pairs = [(after, before) for before, after in reversed(replacements)] if args.undo else replacements
     for before, after in pairs:
         if updated.count(before.encode()) != 1:
             parser.error("A UI patch anchor was missing or ambiguous.")
