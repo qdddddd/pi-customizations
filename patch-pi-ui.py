@@ -80,6 +80,67 @@ BUILD_STEPS = {
 }
 
 
+TUI_CHUNK = Path("dist/bundle/chunks/chunk-X26YOAEH.js")
+TUI_ORIGINAL = "1dc7029d526f9d5e81429c9c26a691f7777f2062dcf1df06d1b6a99127fd4425"
+TUI_CUSTOM = "bead252fef335d14c34e71d2bfc3aa544d5fd683be28502fbe53c4787c0340ff"
+FOCUS_REPLACEMENTS = (
+    ("showHardwareCursor=!1;clearOnShrink", "showHardwareCursor=!1;terminalFocused=!0;clearOnShrink"),
+    (r'this.afterTerminalStart(),this.terminal.hideCursor()',
+     r'this.afterTerminalStart(),this.terminal.hideCursor(),this.terminal.write("\x1B[?1004h")'),
+    (r'this.beforeTerminalStop(options),this.terminal.showCursor()',
+     r'this.terminal.write("\x1B[?1004l"),this.beforeTerminalStop(options),this.terminal.showCursor()'),
+    (r'getExitRestorePrefix(){return`${this.terminalColorSchemeNotificationsEnabled?',
+     r'getExitRestorePrefix(){return`\x1B[?1004l${this.terminalColorSchemeNotificationsEnabled?'),
+    ("handleTerminalInput(data){if(this.consumeTerminalColorResponse(data)",
+     r'handleTerminalInput(data){const hasFocus=data==="\x1B[I",isFocusReport=hasFocus||data==="\x1B[O";'
+     "if(isFocusReport&&this.terminalFocused!==hasFocus){this.terminalFocused=hasFocus;"
+     "if(!hasFocus)this.terminal.hideCursor();this.requestRender()}"
+     "if(this.consumeTerminalColorResponse(data)"),
+    ("data=current}if(this.consumeCellSizeResponse(data))", "data=current}if(isFocusReport||this.consumeCellSizeResponse(data))"),
+    (r'buffer+=this.getShowHardwareCursor()?"\x1B[?25h"', r'buffer+=this.terminalFocused&&this.getShowHardwareCursor()?"\x1B[?25h"'),
+    ("this.getShowHardwareCursor()?this.terminal.showCursor()", "this.terminalFocused&&this.getShowHardwareCursor()?this.terminal.showCursor()"),
+    (r'\x1B[?1002h\x1B[?1004h\x1B[?1006h', r'\x1B[?1002h\x1B[?1006h'),
+    (r'\x1B[?1003h\x1B[?1004h\x1B[?1006h', r'\x1B[?1003h\x1B[?1006h'),
+    (r'\x1B[?1006l\x1B[?1004l\x1B[?1003l', r'\x1B[?1006l\x1B[?1003l'),
+)
+
+
+def plan_patch(parser, bundle, replacements, steps_by_hash, target, undo):
+    if not bundle.is_file():
+        parser.error(f"Pi 1.6.0 bundle not found at {bundle}.")
+    original = bundle.read_bytes()
+    current = sha256(original).hexdigest()
+    if current == target:
+        return None
+    if current not in steps_by_hash:
+        parser.error(f"Unexpected Pi bundle checksum at {bundle}. This patch targets the saved Pi 1.6.0 build.")
+
+    steps = steps_by_hash[current]
+    updated = original
+    pairs = [(after, before) for before, after in reversed(replacements[:steps])] if undo else replacements[steps:]
+    for before, after in pairs:
+        if updated.count(before.encode()) != 1:
+            parser.error(f"A UI patch anchor was missing or ambiguous in {bundle.name}.")
+        updated = updated.replace(before.encode(), after.encode())
+    if sha256(updated).hexdigest() != target:
+        parser.error(f"The patched bundle did not match the expected checksum for {bundle.name}.")
+    return bundle, original, updated
+
+
+def replace_bundle(parser, bundle, original, updated):
+    with tempfile.NamedTemporaryFile(dir=bundle.parent, delete=False) as stream:
+        staged = Path(stream.name)
+        try:
+            stream.write(updated)
+            stream.close()
+            shutil.copymode(bundle, staged)
+            if bundle.read_bytes() != original:
+                parser.error("The installed bundle changed while applying the patch.")
+            staged.replace(bundle)
+        finally:
+            staged.unlink(missing_ok=True)
+
+
 def main():
     parser = ArgumentParser(description="Apply or reverse the compact Pi 1.6.0 transcript patch.")
     parser.add_argument("--package-dir", type=Path, help="Pi npm package directory. Defaults to the package behind pi on PATH.")
@@ -93,40 +154,17 @@ def main():
         package = next((parent for parent in Path(executable).resolve().parents if (parent / CHUNK).is_file()), None)
         if package is None:
             parser.error("The expected Pi 1.6.0 bundle was not found. Supply --package-dir if needed.")
-    bundle = package / CHUNK
-    if not bundle.is_file():
-        parser.error(f"Pi 1.6.0 bundle not found at {bundle}.")
-
-    target = ORIGINAL if args.undo else CUSTOM
-    original = bundle.read_bytes()
-    current = sha256(original).hexdigest()
-    if current == target:
+    patches = [
+        plan_patch(parser, package / CHUNK, REPLACEMENTS, BUILD_STEPS, ORIGINAL if args.undo else CUSTOM, args.undo),
+        plan_patch(parser, package / TUI_CHUNK, FOCUS_REPLACEMENTS, {TUI_ORIGINAL: 0, TUI_CUSTOM: len(FOCUS_REPLACEMENTS)},
+                   TUI_ORIGINAL if args.undo else TUI_CUSTOM, args.undo),
+    ]
+    if not any(patches):
         print("Pi already has the requested UI.")
         return
-    if current not in BUILD_STEPS:
-        parser.error(f"Unexpected Pi bundle checksum at {bundle}. This patch targets the saved Pi 1.6.0 build.")
-
-    steps = BUILD_STEPS[current]
-    updated = original
-    pairs = [(after, before) for before, after in reversed(REPLACEMENTS[:steps])] if args.undo else REPLACEMENTS[steps:]
-    for before, after in pairs:
-        if updated.count(before.encode()) != 1:
-            parser.error("A UI patch anchor was missing or ambiguous.")
-        updated = updated.replace(before.encode(), after.encode())
-    if sha256(updated).hexdigest() != target:
-        parser.error("The patched bundle did not match the expected checksum.")
-
-    with tempfile.NamedTemporaryFile(dir=bundle.parent, delete=False) as stream:
-        staged = Path(stream.name)
-        try:
-            stream.write(updated)
-            stream.close()
-            shutil.copymode(bundle, staged)
-            if bundle.read_bytes() != original:
-                parser.error("The installed bundle changed while applying the patch.")
-            staged.replace(bundle)
-        finally:
-            staged.unlink(missing_ok=True)
+    for patch in patches:
+        if patch:
+            replace_bundle(parser, *patch)
     print("Restart Pi to load the updated UI.")
 
 

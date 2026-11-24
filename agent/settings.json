@@ -5,5 +5,6 @@
   "lastChangelogVersion": "1.6.0",
   "hideThinkingBlock": false,
   "theme": "gruvbox-light",
-  "quietStartup": "header"
+  "quietStartup": "header",
+  "showHardwareCursor": true
 }

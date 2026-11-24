@@ -31,4 +31,4 @@ Upstream workflow references are available in the [oh-my-pi LSP docs](https://gi
 python3 patch-pi-ui.py
 ```
 
-The script targets the saved Pi 1.6.0 npm build. It verifies the installed bundle before writing and can be run again after reinstalling that build. Use `python3 patch-pi-ui.py --undo` to restore the original layout. For an installation outside `PATH`, pass `--package-dir` with the npm package directory. Restart Pi after applying or undoing the patch.
+The script targets the saved Pi 1.6.0 npm build. It verifies the installed bundles before writing and can be run again after reinstalling that build. The prompt uses the terminal’s native cursor and follows terminal focus reports. In tmux, this requires `focus-events on`. Use `python3 patch-pi-ui.py --undo` to restore the original bundles. For an installation outside `PATH`, pass `--package-dir` with the npm package directory. Restart Pi after applying or undoing the patch.
