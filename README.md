@@ -25,6 +25,25 @@ Both tools use Pi’s project trust setting when starting a server or debug sess
 
 Upstream workflow references are available in the [oh-my-pi LSP docs](https://github.com/can1357/oh-my-pi/blob/main/docs/tools/lsp.md) and [debugger docs](https://github.com/can1357/oh-my-pi/blob/main/docs/tools/debug.md).
 
+## Anthropic credit in the footer
+
+The `anthropic-credit` extension estimates the remaining Anthropic API credit, displayed as `claude ~$142.30`. With `model-border` enabled, the balance appears at the right end of the metrics row. The figure turns yellow under $20 and red under $5.
+
+Anthropic has no balance endpoint. The Console Billing page is the only place the credit is shown, the cost report needs an organization-scoped key and reports spend before credits are applied, and Messages responses carry rate limits but nothing about credit. So the figure is an estimate: `/balance <usd>` records the balance read from the Billing page, and the footer shows that amount minus what Pi has spent on the `anthropic` provider since, priced from Pi's model table (its rates match Anthropic's published prices). `/balance` alone shows the amount, the time it was set, the spend since and the number of calls. Run `/balance <usd>` again to correct drift, after a top-up, and when the monthly included credits refresh.
+
+- **What counts.** Assistant messages of the `anthropic` provider in saved sessions: `~/.pi/agent/sessions` and the sessions of omp-workflow subagents in `~/.pi/agent/omp-workflow/agents`, which run without extensions. Each provider response counts once, so a forked session does not count twice. Runs with `--no-session`, in-memory subagents, and anything else that uses the same key are not counted.
+- **Storage and refresh.** The balance and its time are in `~/.pi/agent/anthropic-credit.json`, shared by every Pi process. The footer refreshes at session start and after each turn, reading only the session files modified since the balance was set.
+
+Run the tests with `node --test agent/extensions/anthropic-credit/`.
+
+## Model name in the prompt border
+
+The `model-border` extension moves the model from the footer to the prompt. The active model's id appears at the right end of the prompt's top border, opposite the `Working` status at the left end, and the footer's `(provider) model • thinking level` is dropped from the stats line. The thinking level is then shown only by the border's colour. The label follows model changes, is drawn in the border's colour, is shortened on narrow terminals and is dropped when the border has no room for it.
+
+The label comes from replacing Pi's prompt editor with a `CustomEditor` subclass that keeps the built-in editor behaviour, so it conflicts with any other extension that replaces the editor. Pi uses the last editor loaded. Pi installs a fresh editor on every reload and session switch, so the extension keeps the submitted prompts and replays them into each new editor, which keeps the up arrow's history across `/reload` and `/new`. The footer hides the input, output, cache-read and cache-write token totals and shows the cache hit rate with a `🖫` prefix. Unloading the extension restores the original footer.
+
+Run the tests with `node --test agent/extensions/model-border/`.
+
 ## Restore the compact transcript
 
 ```sh
