@@ -1,4 +1,5 @@
 {
   "$schema": "https://pi.dev/schemas/keybindings.schema.json",
-  "app.model.select": "alt+p"
+  "app.model.select": "alt+p",
+  "app.models.save": "alt+s"
 }

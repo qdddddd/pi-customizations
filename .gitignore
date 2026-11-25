@@ -12,6 +12,9 @@
 !/agent/extensions/omp-workflow/
 /agent/extensions/omp-workflow/*
 !/agent/extensions/omp-workflow/*.ts
+!/agent/extensions/claude-code/
+/agent/extensions/claude-code/*
+!/agent/extensions/claude-code/*.ts
 !/agent/extensions/anthropic-credit/
 /agent/extensions/anthropic-credit/*
 !/agent/extensions/anthropic-credit/*.ts

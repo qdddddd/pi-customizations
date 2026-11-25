@@ -7,7 +7,11 @@ import tempfile
 CHUNK = Path("dist/bundle/chunks/chunk-KSDI5FD4.js")
 ORIGINAL = "5558c943edf1c00ca788788bc6b041d6a70a50ae7e646be2192ad399f1df7e34"
 DIMMED = "f6ce8f2f9a362ab9491d50a4c9d782e6c823cd86e7c7a34516d005bace53d079"
-CUSTOM = "3d4c3f70bdf94895dc23f60aab00fe730d73354ffa9e370a41016d42b2612125"
+COMMAND_COMPACT = "3d4c3f70bdf94895dc23f60aab00fe730d73354ffa9e370a41016d42b2612125"
+THINKING_YELLOW = "0aba5b283d7c6418e120c78ae0c523ce5fb299da02d3d497eea0fb855fdf17de"
+ORANGE_USER_BAR = "d65285128c128a561ea6f3559b6f536f859ebc67fdf3e460a18a3cb3b3b926f0"
+PURPLE_USER_BAR = "ebd60ca712c60bfa599726f1277adf892da33543f9cfac0fa3b48a8993419cb0"
+CUSTOM = "e28058001fcffdeed2c4aef066853059489480626ec3a8ad42d5a489293c434f"
 PREVIOUS_CUSTOM = "4eb0c487ad40b31cdac82f582aed1e5098cb3883c24d38cd0c0ee65f3a50e9a8"
 COMMAND_COLORS = (
     ('theme.fg("toolTitle",`${prompt} ${commandDisplay}`)', 'theme.fg("muted",`${prompt} ${commandDisplay}`)'),
@@ -41,6 +45,22 @@ COMMAND_PREVIEW = (
         'this.setExpanded(!this.expanded),this.commandUi.requestRender();return {handled:!0}})),',
     ),
 )
+THINKING_COLORS = (
+    (
+        'theme.italic(theme.fg("thinkingText",this.hiddenThinkingLabel))',
+        'theme.fg("thinkingText",this.hiddenThinkingLabel)',
+    ),
+    (
+        'this.markdownTheme,{color:text=>theme.fg("thinkingText",text),italic:!0}',
+        '{...this.markdownTheme,italic:text=>text},{color:text=>theme.fg("thinkingText",text)}',
+    ),
+)
+THINKING_WEIGHT = (
+    (
+        '{...this.markdownTheme,italic:text=>text},{color:text=>theme.fg("thinkingText",text)}',
+        '{...this.markdownTheme,italic:text=>text,bold:text=>text},{color:text=>theme.fg("thinkingText",text)}',
+    ),
+)
 REPLACEMENTS = (
     (
         'new Markdown(this.text,this.outputPad,1,this.markdownTheme,{color:content=>theme.fg("userMessageText",content),bgColor:content=>theme.bg("userMessageBg",content)}',
@@ -71,11 +91,23 @@ REPLACEMENTS = (
     ('theme.fg(this.colorKey,theme.bold(`$ ${this.command}`))', 'theme.fg(this.colorKey,`$ ${this.command}`)'),
     *COMMAND_COLORS,
     *COMMAND_PREVIEW,
+    *THINKING_COLORS,
+    *THINKING_WEIGHT,
+    ('theme.fg("accent","▎")', 'theme.fg("border","▎")'),
+    (
+        'let railColor=this.result?.isError?"error":this.isPartial?"warning":"muted",bgFn=',
+        'let railColor=this.result?.isError?"error":this.isPartial?"warning":"borderMuted",bgFn=',
+    ),
 )
+ORANGE_USER_BAR_STEPS = len(REPLACEMENTS) - 2
 BUILD_STEPS = {
     ORIGINAL: 0,
-    PREVIOUS_CUSTOM: len(REPLACEMENTS) - len(COMMAND_PREVIEW) - len(COMMAND_COLORS),
-    DIMMED: len(REPLACEMENTS) - len(COMMAND_PREVIEW),
+    PREVIOUS_CUSTOM: ORANGE_USER_BAR_STEPS - len(COMMAND_COLORS + COMMAND_PREVIEW + THINKING_COLORS + THINKING_WEIGHT),
+    DIMMED: ORANGE_USER_BAR_STEPS - len(COMMAND_PREVIEW + THINKING_COLORS + THINKING_WEIGHT),
+    COMMAND_COMPACT: ORANGE_USER_BAR_STEPS - len(THINKING_COLORS + THINKING_WEIGHT),
+    THINKING_YELLOW: ORANGE_USER_BAR_STEPS - len(THINKING_WEIGHT),
+    ORANGE_USER_BAR: ORANGE_USER_BAR_STEPS,
+    PURPLE_USER_BAR: ORANGE_USER_BAR_STEPS + 1,
     CUSTOM: len(REPLACEMENTS),
 }
 
