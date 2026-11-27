@@ -63,4 +63,6 @@ Run the tests with `node --test agent/extensions/model-border/`.
 python3 patch-pi-ui.py
 ```
 
-The script targets the saved Pi 1.6.0 npm build. It verifies the installed bundles before writing and can be run again after reinstalling that build. The prompt uses the terminal’s native cursor and follows terminal focus reports. In tmux, this requires `focus-events on`. Use `python3 patch-pi-ui.py --undo` to restore the original bundles. For an installation outside `PATH`, pass `--package-dir` with the npm package directory. Restart Pi after applying or undoing the patch.
+Collapsed `write` blocks show up to 100 words and 10 source lines. Click the block in fullscreen mode or press `Ctrl-O` to see the full content. File paths in `read` and `write` blocks use the Gruvbox theme’s aqua color.
+
+The script supports the Pi 1.6.0 and 1.6.1 npm builds and picks the one in `package.json`. It verifies the installed bundles before writing and must be run again after every Pi update, since an update replaces the bundles. A new Pi version needs its chunk names and checksums added with `add_build`. The prompt uses the terminal’s native cursor and follows terminal focus reports. In tmux, this requires `focus-events on`. Use `python3 patch-pi-ui.py --undo` to restore the original bundles. For an installation outside `PATH`, pass `--package-dir` with the npm package directory. Restart Pi after applying or undoing the patch.
